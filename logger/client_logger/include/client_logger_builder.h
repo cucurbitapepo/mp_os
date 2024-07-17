@@ -2,14 +2,25 @@
 #define MATH_PRACTICE_AND_OPERATING_SYSTEMS_CLIENT_LOGGER_BUILDER_H
 
 #include <logger_builder.h>
+#include <map>
+#include <set>
+//#include <experimental/filesystem>
+#include <filesystem>
+#include <fstream>
+#include <nlohmann/json.hpp>
 
 class client_logger_builder final:
     public logger_builder
 {
 
+private:
+
+    std::string _format;
+    std::map<std::string, std::set<logger::severity>> _streams;
+
 public:
 
-    client_logger_builder();
+    client_logger_builder() = default;
 
     client_logger_builder(
         client_logger_builder const &other);
@@ -33,6 +44,13 @@ public:
 
     logger_builder *add_console_stream(
         logger::severity severity) override;
+
+    void add_stream(
+        std::string const &stream_file_path,
+        logger::severity severity) noexcept;
+
+    void set_format(
+            std::string const &format) noexcept;
 
     logger_builder* transform_with_configuration(
         std::string const &configuration_file_path,
