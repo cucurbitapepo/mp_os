@@ -19,7 +19,7 @@ public:
 
 public:
 
-    ~fraction() noexcept;
+    ~fraction() noexcept = default;
 
     fraction(
         fraction const &other);
@@ -92,6 +92,11 @@ public:
         fraction &obj);
 
 public:
+
+    static fraction factorial(
+            size_t number);
+
+    fraction abs() const;
 
     fraction sin(
         fraction const &epsilon) const;
