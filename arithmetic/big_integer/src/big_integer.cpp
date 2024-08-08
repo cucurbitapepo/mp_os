@@ -257,7 +257,7 @@ inline int big_integer::sign() const noexcept
 {
     if (is_equal_to_zero())
     {
-        return 0;
+        return 1;
     }
 
     return 1 - (static_cast<int>((*reinterpret_cast<unsigned int const *>(&_oldest_digit) >> ((sizeof(int) << 3) - 1))) << 1);
@@ -484,7 +484,7 @@ big_integer &big_integer::operator+=(
         result_digits.back() += operation_result;
     }
 
-    if(result_digits.back() & (((sizeof(unsigned int) << 3) - 1)))
+    if(result_digits.back() & (1 << ((sizeof(unsigned int) << 3) - 1)))
     {
         result_digits.push_back(0);
     }
@@ -526,11 +526,18 @@ big_integer big_integer::operator+(
 big_integer &big_integer::operator-=(
     big_integer const &other)
 {
-	if(this->is_equal_to_zero() && other.is_equal_to_zero())
+	if(this->is_equal_to_zero() && !other.is_equal_to_zero())
+    {
+        big_integer tmp(other);
+
+        tmp.change_sign();
+        *this = std::move(tmp);
+        return *this;
+    }
+    else if(!this->is_equal_to_zero() && other.is_equal_to_zero())
     {
         return *this;
     }
-
     else if(this->sign() == -1 && other.sign() == 1)
     {
         this->change_sign();
@@ -538,7 +545,6 @@ big_integer &big_integer::operator-=(
         this->change_sign();
         return *this;
     }
-
     else if(this->sign() == 1 && other.sign() == -1)
     {
         big_integer tmp(other);
@@ -546,7 +552,6 @@ big_integer &big_integer::operator-=(
         *this += tmp;
         return *this;
     }
-
     else if(this->sign() == -1 && other.sign() == -1)
     {
         big_integer tmp(other);
@@ -765,7 +770,7 @@ big_integer &big_integer::operator&=(
     const int this_size = this->get_digits_count();
     const int other_size = other.get_digits_count();
 
-    const int new_size = std::max(this_size, other_size);
+    const int new_size = std::min(this_size, other_size);
 
     int *new_digits = reinterpret_cast<int *>(allocate_with_guard(sizeof(int), new_size + 1));
     *new_digits = new_size;
@@ -1516,12 +1521,12 @@ big_integer &big_integer::trivial_multiplication::multiply(
             unsigned int second_number_half;
             if(j % 2 == 0)
             {
-                unsigned int number = copy.get_digit(i/2);
+                unsigned int number = copy.get_digit(j/2);
                 second_number_half = number & mask;
             }
             else
             {
-                unsigned int number = copy.get_digit(i/2);
+                unsigned int number = copy.get_digit(j/2);
                 second_number_half = (number >> shift) & mask;
             }
 

@@ -15,6 +15,8 @@ class big_integer final
         : public allocator_guardant
 {
 
+    friend class fraction;
+
 public:
     
     enum class multiplication_rule
@@ -217,9 +219,11 @@ private:
     unsigned int *_other_digits;
     allocator *_allocator;
 
-private:
+protected:
 
     big_integer &change_sign();
+
+private:
 
     std::vector<unsigned int> convert_to_base(const std::string &number_representation, size_t base);
 

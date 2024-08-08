@@ -6,7 +6,9 @@
 class fraction final
 {
 
-private:
+    friend class big_integer;
+
+public:
 
     big_integer _numerator;
     big_integer _denominator;
@@ -16,6 +18,10 @@ public:
     fraction(
         big_integer &&numerator,
         big_integer &&denominator);
+
+    fraction(
+        const big_integer &numerator,
+        const big_integer &denominator);
 
 public:
 
