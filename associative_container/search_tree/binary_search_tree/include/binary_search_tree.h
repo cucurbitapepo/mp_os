@@ -74,7 +74,7 @@ public:
     class postfix_reverse_iterator;
     class postfix_reverse_const_iterator;
 
-    struct iterator_data
+    struct iterator_data : public allocator_guardant
     {
 
         friend class prefix_iterator;
@@ -117,80 +117,8 @@ public:
 
         inline const tvalue &get_value() const noexcept;
 
-        /*iterator_data()
-        : _key(reinterpret_cast<tkey *>(::operator new(sizeof(tkey)))),
-        _value(reinterpret_cast<tvalue *>(::operator new(sizeof(tvalue)))),
-        _is_initialized(false),
-        depth(0)
-        {}
-
-        iterator_data(const iterator_data &other)
-        : _key(reinterpret_cast<tkey *>(::operator new(sizeof(tkey)))),
-        _value(reinterpret_cast<tvalue *>(::operator new(sizeof(tvalue)))),
-        _is_initialized(other.is_initialized()),
-        depth(other.depth)
-        {
-            allocator::construct(_key, *(other._key));
-            allocator::construct(_value, *(other._value));
-        }
-
-        iterator_data(const iterator_data &&other) noexcept
-        : _key(other._key),
-        _value(other._value),
-        _is_initialized(other._is_initialized),
-        depth(other.depth)
-        {
-            other._key = nullptr;
-            other._value = nullptr;
-            other._is_initialized = false;
-            other.depth = 0;
-        }
-
-        iterator_data& operator=(const iterator_data &other)
-        {
-            if(&other != this)
-            {
-                this->_key = other._key;
-                this->_value = other._value;
-                this->_is_initialized = other._is_initialized;
-                this->depth = other.depth;
-            }
-            return *this;
-        }
-
-        iterator_data& operator=(iterator_data&& other) noexcept
-        {
-            if(&other != this)
-            {
-                this->key = other._key;
-                this->_value = other._value;
-                this->depth = other.depth;
-                this->_is_initialized = other._is_initialized;
-
-                other._key = nullptr;
-                other._value = nullptr;
-                other.depth = 0;
-                other._is_initialized = false;
-            }
-            return *this;
-        }
-
-        virtual ~iterator_data() noexcept
-        {
-            if(_is_initialized)
-            {
-                allocator::destruct(_key);
-                allocator::destruct(_value);
-            }
-
-            ::operator delete(_key);
-            ::operator delete(_value);
-            _key = nullptr;
-            _value = nullptr;
-
-            _is_initialized = false;
-        }
-         */
+        //zaglushka, there is no way to get access to any other allocator outside of struct iterator_data i believe
+        [[nodiscard]] inline allocator *get_allocator() const noexcept final { return nullptr; }
     };
 
     class prefix_iterator final
@@ -821,9 +749,6 @@ protected:
         binary_search_tree<tkey, tvalue>::insertion_of_existent_key_attempt_strategy _insertion_strategy;
         allocator *_allocator;
         logger *logger;
-        //TODO: WOW
-        //where in the fuck is '_tree' supposed to lead originally??
-        //binary_search_tree<tkey, tvalue> *_tree;
 
     public:
 
@@ -855,8 +780,6 @@ protected:
     {
 
     private:
-        //TODO: WOW again
-        //binary_search_tree<tkey, tvalue> *_tree;
 
     public:
 
@@ -1248,10 +1171,10 @@ template<
         typename tkey,
         typename tvalue>
 binary_search_tree<tkey, tvalue>::iterator_data::iterator_data()
-    : _key(reinterpret_cast<tkey *>(::operator new(sizeof(tkey)))),
-      _value(reinterpret_cast<tvalue *>(::operator new(sizeof(tvalue)))),
-      _is_initialized(false),
-      depth(0)
+    : depth(0),
+      _key(reinterpret_cast<tkey *>(allocate_with_guard(sizeof(tkey), 1))),
+      _value(reinterpret_cast<tvalue *>(allocate_with_guard(sizeof(tvalue), 1))),
+      _is_initialized(true)
 {
 
 }
@@ -1264,8 +1187,8 @@ binary_search_tree<tkey, tvalue>::iterator_data::iterator_data(
     tkey const &key,
     tvalue const &value)
     : depth(depth),
-    _key(reinterpret_cast<tkey *>(::operator new(sizeof(tkey)))),
-    _value(reinterpret_cast<tvalue *>(::operator new(sizeof(tvalue)))),
+    _key(reinterpret_cast<tkey *>(allocate_with_guard(sizeof(tkey), 1))),
+    _value(reinterpret_cast<tvalue *>(allocate_with_guard(sizeof(tvalue), 1))),
     _is_initialized(true)
 {
     allocator::construct( _key, key);
@@ -1294,7 +1217,6 @@ void binary_search_tree<tkey, tvalue>::prefix_iterator::assign_data()
     }
 
     _data->depth = _path.size() - 1;
-    //TODO: virtual void bst::inject_additional_data()...
 }
 
 template<
@@ -1311,7 +1233,6 @@ binary_search_tree<tkey, tvalue>::prefix_iterator::prefix_iterator(
         _path.push(subtree_root);
         allocator::construct(_data->_key, _path.top()->key);
         allocator::construct(_data->_value, _path.top()->value);
-        //TODO: inject data or smth
         _data->depth = 0;
         _data->_is_initialized = true;
     }
@@ -1408,8 +1329,6 @@ void binary_search_tree<tkey, tvalue>::prefix_const_iterator::assign_data()
         allocator::construct(_data->_value, _path.top()->value);
         _data->_is_initialized = true;
     }
-
-    //TODO: virtual void bst::inject_additional_data()...
 }
 
 template<
@@ -1426,7 +1345,6 @@ binary_search_tree<tkey, tvalue>::prefix_const_iterator::prefix_const_iterator(
             _path.push(subtree_root);
             allocator::construct(_data->_key, _path.top()->key);
             allocator::construct(_data->_value, _path.top()->value);
-            //TODO: inject data or smth
             _data->depth = 0;
             _data->_is_initialized = true;
         }
@@ -1530,7 +1448,6 @@ void binary_search_tree<tkey, tvalue>::prefix_reverse_iterator::assign_data()
     }
 
     _data->depth = _path.size() - 1;
-    //TODO: virtual void bst::inject_additional_data()...
 }
 
 template<
@@ -1547,7 +1464,6 @@ binary_search_tree<tkey, tvalue>::prefix_reverse_iterator::prefix_reverse_iterat
         _path.push(subtree_root);
         allocator::construct(_data->_key, _path.top()->key);
         allocator::construct(_data->_value, _path.top()->value);
-        //TODO: inject data or smth
         _data->depth = 0;
         _data->_is_initialized = true;
     }
@@ -1648,7 +1564,6 @@ void binary_search_tree<tkey, tvalue>::prefix_const_reverse_iterator::assign_dat
     }
 
     _data->depth = _path.size() - 1;
-    //TODO: virtual void bst::inject_additional_data()...
 }
 
 template<
@@ -1665,7 +1580,6 @@ binary_search_tree<tkey, tvalue>::prefix_const_reverse_iterator::prefix_const_re
         _path.push(subtree_root);
         allocator::construct(_data->_key, _path.top()->key);
         allocator::construct(_data->_value, _path.top()->value);
-        //TODO: inject data or smth
         _data->depth = 0;
         _data->_is_initialized = true;
     }
@@ -1765,7 +1679,6 @@ void binary_search_tree<tkey, tvalue>::infix_iterator::assign_data()
     }
 
     _data->depth = _path.size() - 1;
-    //TODO: virtual void bst::inject_additional_data()...
 }
 
 template<
@@ -1790,7 +1703,6 @@ binary_search_tree<tkey, tvalue>::infix_iterator::infix_iterator(
 
     allocator::construct(_data->_key, _path.top()->key);
     allocator::construct(_data->_value, _path.top()->value);
-    //TODO: inject additional
     _data->depth = _path.size() - 1;
     _data->_is_initialized = true;
 }
@@ -1904,7 +1816,6 @@ void binary_search_tree<tkey, tvalue>::infix_const_iterator::assign_data()
     }
 
     _data->depth = _path.size() - 1;
-    //TODO: virtual void bst::inject_additional_data()...
 }
 template<
     typename tkey,
@@ -1928,7 +1839,6 @@ binary_search_tree<tkey, tvalue>::infix_const_iterator::infix_const_iterator(
 
     allocator::construct(_data->_key, _path.top()->key);
     allocator::construct(_data->_value, _path.top()->value);
-    //TODO: inject additional
     _data->depth = _path.size() - 1;
     _data->_is_initialized = true;
 }
@@ -2042,7 +1952,6 @@ void binary_search_tree<tkey, tvalue>::infix_reverse_iterator::assign_data()
     }
 
     _data->depth = _path.size() - 1;
-    //TODO: virtual void bst::inject_additional_data()...
 }
 
 template<
@@ -2067,7 +1976,6 @@ binary_search_tree<tkey, tvalue>::infix_reverse_iterator::infix_reverse_iterator
 
     allocator::construct(_data->_key, _path.top().key);
     allocator::construct(_data->_value, _path.top().value);
-    //TODO: inject additional
     _data->depth = _path.size() - 1;
     _data->_is_initialized = true;
 }
@@ -2181,7 +2089,6 @@ void binary_search_tree<tkey, tvalue>::infix_const_reverse_iterator::assign_data
     }
 
     _data->depth = _path.size() - 1;
-    //TODO: virtual void bst::inject_additional_data()...
 }
 
 template<
@@ -2206,7 +2113,6 @@ binary_search_tree<tkey, tvalue>::infix_const_reverse_iterator::infix_const_reve
 
     allocator::construct(_data->_key, _path.top()->key);
     allocator::construct(_data->_value, _path.top()->value);
-    //TODO: inject additional
     _data->depth = _path.size() - 1;
     _data->_is_initialized = true;
 }
@@ -2318,8 +2224,6 @@ void binary_search_tree<tkey, tvalue>::postfix_iterator::assign_data()
         allocator::construct(_data->_value, _path.top()->value);
         _data->_is_initialized = true;
     }
-
-    //TODO: virtual void bst::inject_additional_data()...
 }
 
 template<
@@ -2354,7 +2258,6 @@ binary_search_tree<tkey, tvalue>::postfix_iterator::postfix_iterator(
 
         allocator::construct(_data->_key, _path.top()->key);
         allocator::construct(_data->_value, _path.top()->value);
-        //TODO: inject
         _data->_is_initialized = true;
 
     }
@@ -2457,8 +2360,6 @@ void binary_search_tree<tkey, tvalue>::postfix_const_iterator::assign_data()
         allocator::construct(_data->_value, _path.top()->value);
         _data->_is_initialized = true;
     }
-
-    //TODO: virtual void bst::inject_additional_data()...
 }
 
 template<
@@ -2493,7 +2394,6 @@ binary_search_tree<tkey, tvalue>::postfix_const_iterator::postfix_const_iterator
 
         allocator::construct(_data->_key, _path.top()->key);
         allocator::construct(_data->_value, _path.top()->value);
-        //TODO: inject
         _data->_is_initialized = true;
 
     }
@@ -2596,8 +2496,6 @@ void binary_search_tree<tkey, tvalue>::postfix_reverse_iterator::assign_data()
         allocator::construct(_data->_value, _path.top()->value);
         _data->_is_initialized = true;
     }
-
-    //TODO: virtual void bst::inject_additional_data()...
 }
 
 template<
@@ -2633,9 +2531,7 @@ binary_search_tree<tkey, tvalue>::postfix_reverse_iterator::postfix_reverse_iter
 
         allocator::construct(_data->_key, _path.top()->key);
         allocator::construct(_data->_value, _path.top()->value);
-        //TODO: inject
         _data->_is_initialized = true;
-
     }
     else return;
 }
@@ -2736,8 +2632,6 @@ void binary_search_tree<tkey, tvalue>::postfix_const_reverse_iterator::assign_da
         allocator::construct(_data->_value, _path.top()->value);
         _data->_is_initialized = true;
     }
-
-    //TODO: virtual void bst::inject_additional_data()...
 }
 
 template<
@@ -2773,7 +2667,6 @@ binary_search_tree<tkey, tvalue>::postfix_const_reverse_iterator::postfix_const_
 
         allocator::construct(_data->_key, _path.top()->key);
         allocator::construct(_data->_value, _path.top()->value);
-        //TODO: inject
         _data->_is_initialized = true;
 
     }
